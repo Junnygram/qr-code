@@ -1,13 +1,13 @@
-"use client";
-import styles from "../page.module.css";
+'use client';
+import styles from '../page.module.css';
 import { useState } from 'react';
-import "../globals.css";
-import { MdArrowBack } from "react-icons/md";
+import '../globals.css';
+import { MdArrowBack } from 'react-icons/md';
 import { useRouter } from 'next/navigation';
 
 export default function Scan() {
   const [imageData, setImageData] = useState(null);
-  const [qrCodeData, setQrCodeData] = useState(""); // State for the generated QR code
+  const [qrCodeData, setQrCodeData] = useState(''); // State for the generated QR code
   const router = useRouter();
 
   const handleImageUpload = async () => {
@@ -20,12 +20,14 @@ export default function Scan() {
     formData.append('file', imageData);
 
     try {
-      const response = await fetch('http://localhost:8000/generate-qr-image/',
-      // /api/proxy-image', 
-      {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch(
+        'http://localhost:8000/generate-qr-image/',
+        // /api/proxy-image',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
 
       if (response.ok) {
         const result = await response.json();
@@ -46,17 +48,29 @@ export default function Scan() {
   return (
     <main className={styles.main}>
       <div className={styles.back_container} onClick={() => router.push('/')}>
-        <MdArrowBack className="header_img" /><span>Back</span>
+        <MdArrowBack className="header_img" />
+        <span>Back</span>
       </div>
       <div className={styles.header_title}>
-        <h1>Insta<span className={styles.header_span}>QR</span></h1>
+        <h1>
+          Insta<span className={styles.header_span}>QR</span>
+        </h1>
       </div>
 
       <div className={styles.subheading}>
-        <p>Transform your text, image, and URL to a scannable code using our QR Code Generator</p>
+        <p>
+          Transform your text, image, and URL to a scannable code using our QR
+          Code Generator
+        </p>
       </div>
       <div className={styles.input_container}>
-        <input type="file" accept="image/*" onChange={handleFileChange} placeholder="Upload Image" className={styles.search} />
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          placeholder="Upload Image"
+          className={styles.search}
+        />
         <button onClick={handleImageUpload} className={styles.search_btn}>
           Generate QR Code
         </button>
@@ -65,7 +79,10 @@ export default function Scan() {
       {/* Display the generated QR code */}
       {qrCodeData && (
         <div className={styles.qr_code_container}>
-          <img src={`data:image/png;base64,${qrCodeData}`} alt="Generated QR Code" />
+          <img
+            src={`data:image/png;base64,${qrCodeData}`}
+            alt="Generated QR Code"
+          />
         </div>
       )}
     </main>
