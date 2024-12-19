@@ -21,8 +21,8 @@ export default function Scan() {
 
     try {
       const response = await fetch(
-        'http://localhost:8000/generate-qr-image/',
-        // /api/proxy-image',
+        // 'http://localhost:8000/generate-qr-image/',
+        '/api/proxy-image',
         {
           method: 'POST',
           body: formData,

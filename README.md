@@ -482,3 +482,103 @@ The simplest way to delete the cluster and all associated resources (e.g., nodes
 ```
    eksctl delete cluster --name insta-qr-cluster --region us-east-1
 ```
+
+To install Helm, Prometheus, and Grafana on macOS, follow these steps:
+
+### 1. **Install Helm**
+
+First, you need to install Helm on your macOS system. The following method uses Homebrew, which is the easiest way to install Helm.
+
+```bash
+brew install helm
+```
+
+If you don't have Homebrew installed, you can install it from [here](https://brew.sh/).
+
+### 2. **Add Helm Repositories for Prometheus and Grafana**
+
+After Helm is installed, add the Prometheus and Grafana Helm repositories.
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add grafana https://grafana.github.io/helm-charts
+```
+
+### 3. **Update Helm Repositories**
+
+Make sure the Helm repositories are up-to-date.
+
+```bash
+helm repo update
+```
+
+### 4. **Install Prometheus using Helm**
+
+Now you can install Prometheus using Helm.
+
+```bash
+helm install prometheus prometheus-community/kube-prometheus-stack
+```
+
+This will install the `kube-prometheus-stack` which includes Prometheus, Alertmanager, and Grafana.
+
+### 5. **Install Grafana using Helm**
+
+You can install Grafana with Helm as well.
+
+```bash
+helm install grafana grafana/grafana
+```
+
+This will install Grafana with the default settings.
+
+After installation, you can check the status of your installations using:
+
+```bash
+helm list
+```
+
+kubectl get all
+
+Expose Prometheus and Grafana
+We can either port-forward for development use or a load balancer for Production use. but for this article, we will be port-forwarding
+
+# Prometheus
+
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090
+
+# Grafana
+
+kubectl port-forward svc/prometheus-grafana 3000:80
+
+Expose Prometheus and Grafana
+We can either port-forward for development use or a load balancer for Production use. but for this article, we will be port-forwarding
+
+# Prometheus
+
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090
+
+# Grafana
+
+kubectl port-forward svc/prometheus-grafana 3000:80
+
+Apply the ServiceMonitor updates and restart deployments.
+
+kubectl apply -f service_monitor.yml
+kubectl rollout restart deployment
+
+Navigate to Status > Targets and check if the backend Service is listed.
+
+on grafana
+home> connetcion > prometheus
+
+kubectl rollout restart deployment
+
+To delete an EKS cluster and everything associated with it, follow these steps:
+Using eksctl
+
+The simplest way to delete the cluster and all associated resources (e.g., nodes, node groups, VPC) is with eksctl:
+
+```
+   eksctl delete cluster --name insta-qr-cluster --region us-east-1
+```

@@ -9,11 +9,11 @@ const nextConfig = {
     return [
       {
         source: '/api/proxy',
-        destination: 'http://backend-service/generate-qr/',
+        destination: 'http://backend-service:8000/generate-qr/',
       },
       {
         source: '/api/proxy-image',
-        destination: 'http://backend-service/generate-qr-image/',
+        destination: 'http://backend-service:8000/generate-qr-image/',
       },
     ];
   },
