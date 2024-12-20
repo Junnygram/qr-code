@@ -478,107 +478,155 @@ To delete an EKS cluster and everything associated with it, follow these steps:
 Using eksctl
 
 The simplest way to delete the cluster and all associated resources (e.g., nodes, node groups, VPC) is with eksctl:
+Here’s the improved version of your guide with better structure, grammar, and flow:
 
-```
-   eksctl delete cluster --name insta-qr-cluster --region us-east-1
-```
+---
 
-To install Helm, Prometheus, and Grafana on macOS, follow these steps:
+## **Monitoring Kubernetes with Prometheus and Grafana**
 
 ### 1. **Install Helm**
 
-First, you need to install Helm on your macOS system. The following method uses Homebrew, which is the easiest way to install Helm.
+First, ensure Helm is installed on your system. On macOS, the easiest way to install Helm is using Homebrew:
 
 ```bash
 brew install helm
 ```
 
-If you don't have Homebrew installed, you can install it from [here](https://brew.sh/).
+If you don't have Homebrew, you can install it from [here](https://brew.sh/).
+
+---
 
 ### 2. **Add Helm Repositories for Prometheus and Grafana**
 
-After Helm is installed, add the Prometheus and Grafana Helm repositories.
+After installing Helm, add the Prometheus and Grafana repositories:
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add grafana https://grafana.github.io/helm-charts
-```
-
-### 3. **Update Helm Repositories**
-
-Make sure the Helm repositories are up-to-date.
-
-```bash
 helm repo update
 ```
 
-### 4. **Install Prometheus using Helm**
-
-Now you can install Prometheus using Helm.
+To list available versions of the Prometheus stack, run:
 
 ```bash
-helm install prometheus prometheus-community/kube-prometheus-stack
+helm search repo prometheus-community/kube-prometheus-stack --versions
 ```
 
-This will install the `kube-prometheus-stack` which includes Prometheus, Alertmanager, and Grafana.
+---
 
-### 5. **Install Grafana using Helm**
+### 3. **Install Prometheus Stack**
 
-You can install Grafana with Helm as well.
+Install the `kube-prometheus-stack`, which includes Prometheus, Grafana, Alertmanager, and exporters (Node Exporter and Kube State Metrics):
 
 ```bash
-helm install grafana grafana/grafana
+helm install prometheus prometheus-community/kube-prometheus-stack --version 45.7.1 --namespace monitoring --create-namespace
 ```
 
-This will install Grafana with the default settings.
+This will:
 
-After installation, you can check the status of your installations using:
+- Automatically create the `monitoring` namespace (if it doesn’t exist).
+- Deploy all components of the monitoring stack.
+
+To confirm the deployment:
 
 ```bash
-helm list
+kubectl get pods -n monitoring
 ```
 
-kubectl get all
+---
 
-Expose Prometheus and Grafana
-We can either port-forward for development use or a load balancer for Production use. but for this article, we will be port-forwarding
+### 4. **Access Grafana and Prometheus Locally**
 
-# Prometheus
+You can expose the Grafana and Prometheus UIs via port-forwarding for local development:
 
-kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090
+#### **Prometheus**
 
-# Grafana
+```bash
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus -n monitoring 9090:9090
+```
 
-kubectl port-forward svc/prometheus-grafana 3000:80
+#### **Grafana**
 
-Expose Prometheus and Grafana
-We can either port-forward for development use or a load balancer for Production use. but for this article, we will be port-forwarding
+```bash
+kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80
+```
 
-# Prometheus
+Open the UIs in your browser:
 
-kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090
+- **Prometheus**: [http://localhost:9090](http://localhost:9090)
+- **Grafana**: [http://localhost:3000](http://localhost:3000)
 
-# Grafana
+---
 
-kubectl port-forward svc/prometheus-grafana 3000:80
+### 5. **Grafana Default Credentials**
 
-Apply the ServiceMonitor updates and restart deployments.
+The default credentials for Grafana are:
 
+- **Username**: `admin`
+- **Password**: `prom-operator`
+
+If the credentials don’t work, retrieve the admin password using:
+
+```bash
+kubectl get secret prometheus-grafana -n monitoring -o jsonpath="{.data.admin-password}" | base64 --decode; echo
+```
+
+---
+
+### 6. **Set Up Prometheus as a Data Source in Grafana**
+
+1. Open Grafana ([http://localhost:3000](http://localhost:3000)).
+2. Log in using the credentials.
+3. Navigate to **Data Sources** → **Add Data Source**.
+4. Select **Prometheus**.
+5. Configure the following settings:
+
+   - **Name**: `Prometheus` (or any desired name).
+   - **URL**: `http://prometheus-kube-prometheus-prometheus.default.svc.cluster.local:9090`
+   - **HTTP Method**: `GET`
+   - **Scrape Interval**: `15s`
+
+6. Click **Save & Test**. You should see a success message indicating Prometheus is connected.
+
+---
+
+### 7. **Create Grafana Dashboards**
+
+Grafana allows you to create custom dashboards or import pre-built ones.
+
+To create a custom dashboard:
+
+1. Click **“+”** → **Dashboard** → **Add a New Panel**.
+2. Select a visualization type (e.g., Time Series).
+3. Use Prometheus queries to populate data.
+
+Here are some common metrics exported by FastAPI Instrumentator:
+
+- **`http_server_requests_total`**: Total HTTP requests received.
+- **`http_request_duration_seconds_count`**: Total number of requests categorized by their duration.
+- **`process_cpu_seconds_total`**: Total CPU time used by the application.
+- **`process_memory_bytes`**: Memory consumed by the application.
+
+---
+
+### 8. **Rollout Updates for ServiceMonitor**
+
+If you apply changes to your ServiceMonitor configurations, ensure you restart the related deployments:
+
+```bash
 kubectl apply -f service_monitor.yml
-kubectl rollout restart deployment
-
-Navigate to Status > Targets and check if the backend Service is listed.
-
-on grafana
-home> connetcion > prometheus
-
-kubectl rollout restart deployment
-
-To delete an EKS cluster and everything associated with it, follow these steps:
-Using eksctl
-
-The simplest way to delete the cluster and all associated resources (e.g., nodes, node groups, VPC) is with eksctl:
-
+kubectl rollout restart deployment <deployment-name>
 ```
-   eksctl delete cluster --name insta-qr-cluster --region us-east-1
+
+Verify the changes in Prometheus by navigating to **Status → Targets** and confirming the backend service is listed.
+
+---
+
+### 9. **Cleanup: Delete EKS Cluster**
+
+If you need to delete the EKS cluster along with all associated resources, use `eksctl`:
+
+```bash
+eksctl delete cluster --name insta-qr-cluster --region us-east-1
 ```
+
+This will clean up the cluster, nodes, VPC, and associated resources.
