@@ -482,151 +482,264 @@ Here’s the improved version of your guide with better structure, grammar, and 
 
 ---
 
-## **Monitoring Kubernetes with Prometheus and Grafana**
+Here’s the updated version, with the instructions for creating a dynamic namespace variable in Grafana included seamlessly:
+
+---
 
 ### 1. **Install Helm**
 
-First, ensure Helm is installed on your system. On macOS, the easiest way to install Helm is using Homebrew:
+First, you need to install Helm on your macOS system. The following method uses Homebrew, which is the easiest way to install Helm.
 
 ```bash
 brew install helm
 ```
 
-If you don't have Homebrew, you can install it from [here](https://brew.sh/).
+If you don't have Homebrew installed, you can install it from [here](https://brew.sh/).
 
 ---
 
 ### 2. **Add Helm Repositories for Prometheus and Grafana**
 
-After installing Helm, add the Prometheus and Grafana repositories:
+After Helm is installed, add the Prometheus and Grafana Helm repositories:
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-```
-
-To list available versions of the Prometheus stack, run:
-
-```bash
-helm search repo prometheus-community/kube-prometheus-stack --versions
 ```
 
 ---
 
 ### 3. **Install Prometheus Stack**
 
-Install the `kube-prometheus-stack`, which includes Prometheus, Grafana, Alertmanager, and exporters (Node Exporter and Kube State Metrics):
+To install the Prometheus stack (which includes Prometheus, Alertmanager, Node Exporter, Kube State Metrics, and Grafana), run:
 
 ```bash
 helm install prometheus prometheus-community/kube-prometheus-stack --version 45.7.1 --namespace monitoring --create-namespace
 ```
 
-This will:
+- This installation creates a `monitoring` namespace and deploys the Prometheus stack components.
 
-- Automatically create the `monitoring` namespace (if it doesn’t exist).
-- Deploy all components of the monitoring stack.
-
-To confirm the deployment:
+To confirm installation:
 
 ```bash
 kubectl get pods -n monitoring
 ```
 
----
-
-### 4. **Access Grafana and Prometheus Locally**
-
-You can expose the Grafana and Prometheus UIs via port-forwarding for local development:
-
-#### **Prometheus**
+To get services in monitoring namespace:
 
 ```bash
-kubectl port-forward svc/prometheus-kube-prometheus-prometheus -n monitoring 9090:9090
+kubectl get svc -n monitoring
 ```
 
-#### **Grafana**
+To expose Grafana and Prometheus locally:
 
 ```bash
-kubectl port-forward svc/prometheus-grafana -n monitoring 3000:80
+# Expose Prometheus
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090 -n monitoring
+
+# kubectl port-forward svc/prometheus-kube-operated 9090:9090 -n monitoring
+
+# Expose Grafana
+kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring
 ```
 
-Open the UIs in your browser:
-
-- **Prometheus**: [http://localhost:9090](http://localhost:9090)
-- **Grafana**: [http://localhost:3000](http://localhost:3000)
-
----
-
-### 5. **Grafana Default Credentials**
-
-The default credentials for Grafana are:
+Default Grafana credentials:
 
 - **Username**: `admin`
 - **Password**: `prom-operator`
 
-If the credentials don’t work, retrieve the admin password using:
+If the credentials don’t work, retrieve the password:
 
 ```bash
-kubectl get secret prometheus-grafana -n monitoring -o jsonpath="{.data.admin-password}" | base64 --decode; echo
+kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 --decode; echo
 ```
 
 ---
 
-### 6. **Set Up Prometheus as a Data Source in Grafana**
+### 4. **Add Prometheus as a Data Source in Grafana**
 
-1. Open Grafana ([http://localhost:3000](http://localhost:3000)).
-2. Log in using the credentials.
-3. Navigate to **Data Sources** → **Add Data Source**.
+1. Open Grafana in your browser (http://localhost:3000).
+2. Login using the default credentials.
+3. Navigate to **Configuration** → **Data Sources** → **Add Data Source**.
 4. Select **Prometheus**.
-5. Configure the following settings:
-
-   - **Name**: `Prometheus` (or any desired name).
-   - **URL**: `http://prometheus-kube-prometheus-prometheus.default.svc.cluster.local:9090`
-   - **HTTP Method**: `GET`
-   - **Scrape Interval**: `15s`
-
-6. Click **Save & Test**. You should see a success message indicating Prometheus is connected.
+5. Set the URL to:
+   ```text
+   http://prometheus-kube-prometheus-prometheus.default.svc.cluster.local:9090
+   ```
+6. Click **Save & Test**.
 
 ---
 
-### 7. **Create Grafana Dashboards**
+### 5. **Add a Variable for Dynamic Namespaces**
 
-Grafana allows you to create custom dashboards or import pre-built ones.
+To dynamically populate data for different namespaces in your Grafana dashboard:
 
-To create a custom dashboard:
+#### Create a Namespace Variable:
 
-1. Click **“+”** → **Dashboard** → **Add a New Panel**.
-2. Select a visualization type (e.g., Time Series).
-3. Use Prometheus queries to populate data.
+1. Navigate to your Grafana Dashboard.
+2. Go to **Settings** → **Variables** → **Add Variable**.
+3. Configure the variable as follows:
+   - **Name**: `namespace`
+   - **Type**: `Query`
+   - **Data Source**: Your Prometheus data source.
+   - **Query**:
+     ```promql
+     label_values(container_cpu_usage_seconds_total, container_label_io_kubernetes_pod_namespace)
+     ```
+4. Click **Save**.
 
-Here are some common metrics exported by FastAPI Instrumentator:
+#### Use the Variable in Panels:
 
-- **`http_server_requests_total`**: Total HTTP requests received.
-- **`http_request_duration_seconds_count`**: Total number of requests categorized by their duration.
-- **`process_cpu_seconds_total`**: Total CPU time used by the application.
-- **`process_memory_bytes`**: Memory consumed by the application.
-
----
-
-### 8. **Rollout Updates for ServiceMonitor**
-
-If you apply changes to your ServiceMonitor configurations, ensure you restart the related deployments:
-
-```bash
-kubectl apply -f service_monitor.yml
-kubectl rollout restart deployment <deployment-name>
-```
-
-Verify the changes in Prometheus by navigating to **Status → Targets** and confirming the backend service is listed.
+1. In your dashboard panels, update the query to include the `namespace` variable. Example:
+   ```promql
+   sum(rate(container_cpu_usage_seconds_total{namespace="$namespace"}[5m]))
+   ```
+2. Save the panel and test the namespace dropdown.
 
 ---
 
-### 9. **Cleanup: Delete EKS Cluster**
+### 6. **Create Custom Dashboards**
 
-If you need to delete the EKS cluster along with all associated resources, use `eksctl`:
+1. To create a custom dashboard, click **New Dashboard** → **Add New Panel**.
+2. Choose the visualization type (e.g., Time Series).
+3. Add queries using Prometheus metrics such as:
+   - `http_server_requests_total`
+   - `http_request_duration_seconds_count`
+   - `process_cpu_seconds_total`
+   - `process_memory_bytes`
+4. Use the `namespace` variable in queries to filter data dynamically.
+
+### Setting Up a CI/CD Pipeline for Our Workflow
+
+Manually restarting deployments, rebuilding Docker images, and pushing to Elastic Container Registry (ECR) for every code change can be tedious and error-prone, especially with frequent and incremental updates. To simplify and automate this process, we’ll set up a **CI/CD pipeline** that ensures efficient and reliable deployment with minimal manual intervention.
+
+---
+
+### Why a CI/CD Pipeline?
+
+- **Automation:** Reduces repetitive tasks like rebuilding images and restarting deployments.
+- **Consistency:** Minimizes human error and ensures the same process is followed every time.
+- **Efficiency:** Tracks changes, organizes the workflow, and speeds up deployment cycles.
+
+Since our codebase is hosted on **GitHub**, **GitHub Actions** is the natural choice for CI/CD. It integrates seamlessly with GitHub repositories and allows automation of tasks. Alternatives include **AWS CodePipeline**, **Jenkins**, and **CircleCI**.
+
+---
+
+### Setting Up GitHub Actions
+
+1. **Locate the GitHub Actions Workflow File**  
+   In your project’s root directory, locate the `.github/workflows` folder. Inside, you should find the `ci-cd.yml` file. Below is the updated configuration for your CI/CD pipeline:
+
+   ```yaml
+   name: ECR Build and Deploy to EKS
+   on:
+     push:
+       branches:
+         - main # Trigger the workflow when changes are pushed to the main branch
+
+   jobs:
+     build-and-deploy:
+       runs-on: ubuntu-latest
+       strategy:
+         matrix:
+           service: [frontend, backend] # Matrix for frontend and backend services
+
+       steps:
+         - name: Checkout code
+           uses: actions/checkout@v2
+
+         - name: Configure AWS credentials from Secrets
+           uses: aws-actions/configure-aws-credentials@v1
+           with:
+             aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+             aws-region: ${{ secrets.AWS_REGION }}
+
+         - name: Login to Amazon ECR
+           run: |
+             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+         - name: Build and Tag Docker Image
+           run: |
+             IMAGE_TAG=$(git rev-parse --short HEAD)
+             docker build -t insta-${{ matrix.service }}:${IMAGE_TAG} ./${{ matrix.service }}
+             docker tag insta-${{ matrix.service }}:${IMAGE_TAG} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-${{ matrix.service }}:${IMAGE_TAG}
+           env:
+             IMAGE_TAG: ${{ github.sha }}
+
+         - name: Push Docker Image to ECR
+           run: |
+             docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-${{ matrix.service }}:${IMAGE_TAG}
+           env:
+             IMAGE_TAG: ${{ github.sha }}
+
+         - name: Set up kubeconfig
+           run: |
+             mkdir -p $HOME/.kube
+             echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+             chmod 600 $HOME/.kube/config
+
+         - name: Deploy to EKS
+           run: |
+             kubectl set image deployment/${{ matrix.service }}-deployment ${{ matrix.service }}-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-${{ matrix.service }}:${IMAGE_TAG} --record
+
+         - name: Verify Deployment Rollout
+           run: |
+             kubectl rollout status deployment/${{ matrix.service }}-deployment
+   ```
+
+2. **Secure Environment Variables**
+
+   - Remove the `.env` file from your project to avoid exposing sensitive credentials.
+   - Add these credentials to **GitHub Secrets** by navigating to:  
+     **GitHub repository → Settings → Secrets and variables → Actions**.
+   - Required secrets include:
+     - `AWS_ACCESS_KEY_ID`
+     - `AWS_SECRET_ACCESS_KEY`
+     - `AWS_REGION`
+     - `AWS_ACCOUNT_ID`
+     - `KUBECONFIG` (base64-encoded kubeconfig file).
+
+3. **Retrieve and Add Your Kubeconfig File**  
+   To grant your pipeline access to the Kubernetes cluster:
+   - Retrieve the `kubeconfig` file from your local machine:
+     ```bash
+     cat ~/.kube/config | base64
+     ```
+   - Copy the output and add it to GitHub Secrets as a new key named `KUBECONFIG`.
+
+---
+
+### Testing the Pipeline
+
+Push your changes to GitHub. Once the workflow runs successfully, you should see the following:
+
+1. Code changes are automatically built into a new Docker image tagged with a unique Git SHA.
+2. The image is pushed to Amazon ECR.
+3. Kubernetes deployments for both `frontend` and `backend` are updated seamlessly.
+4. The pipeline verifies successful rollout using Kubernetes.
+
+---
+
+### Summary
+
+In this guide, we covered:
+
+1. **Creating container images** using Docker.
+2. **Deploying locally** with Docker Compose.
+3. **Deploying to AWS Elastic Kubernetes Service (EKS)**.
+4. **Monitoring the application** with Prometheus and Grafana.
+5. **Setting up a CI/CD pipeline** to automate the workflow with GitHub Actions.
+
+Congratulations on successfully building and automating your deployment pipeline! 🎉
+
+---
+
+### **Deleting an EKS Cluster**
+
+To delete your EKS cluster and all associated resources:
 
 ```bash
 eksctl delete cluster --name insta-qr-cluster --region us-east-1
 ```
 
-This will clean up the cluster, nodes, VPC, and associated resources.
+---
