@@ -30,12 +30,12 @@ jobs:
 
       - name: Build and Tag Docker Image for Frontend
         run: |
-          docker build -t insta-frontend:$IMAGE_TAG ./frontend
+          docker build -t qr-code-frontend:$IMAGE_TAG ./frontend
           docker tag qr-code-frontend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:$IMAGE_TAG
 
       - name: Build and Tag Docker Image for Backend
         run: |
-          docker build -t insta-backend:$IMAGE_TAG ./backend
+          docker build -t qr-code-backend:$IMAGE_TAG ./backend
           docker tag qr-code-backend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:$IMAGE_TAG
 
       - name: Push Frontend Image to ECR
