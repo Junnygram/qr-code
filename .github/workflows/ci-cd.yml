@@ -1,16 +1,12 @@
 name: ECR Build and Deploy to EKS
-
 on:
   push:
     branches:
       - main # Trigger the workflow when changes are pushed to the main branch
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [frontend, backend] # Matrix for frontend and backend services
 
     steps:
       - name: Checkout code
@@ -27,19 +23,28 @@ jobs:
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-      - name: Build and Tag Docker Image
-        run: |
-          IMAGE_TAG=$(git rev-parse --short HEAD)
-          docker build -t insta-${{ matrix.service }}:${IMAGE_TAG} ./${{ matrix.service }}
-          docker tag insta-${{ matrix.service }}:${IMAGE_TAG} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-${{ matrix.service }}:${IMAGE_TAG}
+      - name: Set image tag
         env:
           IMAGE_TAG: ${{ github.sha }}
+        run: echo "IMAGE_TAG=${IMAGE_TAG}"
 
-      - name: Push Docker Image to ECR
+      - name: Build and Tag Docker Image for Frontend
         run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-${{ matrix.service }}:${IMAGE_TAG}
-        env:
-          IMAGE_TAG: ${{ github.sha }}
+          docker build -t insta-frontend:$IMAGE_TAG ./frontend
+          docker tag insta-frontend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:$IMAGE_TAG
+
+      - name: Build and Tag Docker Image for Backend
+        run: |
+          docker build -t insta-backend:$IMAGE_TAG ./backend
+          docker tag insta-backend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:$IMAGE_TAG
+
+      - name: Push Frontend Image to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:$IMAGE_TAG
+
+      - name: Push Backend Image to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:$IMAGE_TAG
 
       - name: Set up kubeconfig
         run: |
@@ -47,10 +52,10 @@ jobs:
           echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
           chmod 600 $HOME/.kube/config
 
-      - name: Deploy to EKS
+      - name: Deploy Frontend to EKS
         run: |
-          kubectl set image deployment/${{ matrix.service }}-deployment ${{ matrix.service }}-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-${{ matrix.service }}:${IMAGE_TAG} --record
+          kubectl set image deployment/frontend-deployment frontend-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:$IMAGE_TAG --record
 
-      - name: Verify Deployment Rollout
+      - name: Deploy Backend to EKS
         run: |
-          kubectl rollout status deployment/${{ matrix.service }}-deployment
+          kubectl set image deployment/backend-deployment backend-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:$IMAGE_TAG --record
