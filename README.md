@@ -226,7 +226,7 @@ After running this command, you can interact with your EKS cluster using `kubect
 
 ### **Step 3: Apply Kubernetes Deployment and Service Configurations**
 
-You have two deployment configurations: one for the frontend (`frontend.yml`) and one for the backend (`backend.yml`).
+You have two deployment configurations: one for the frontend (`frontend.yml`) and one for the backend (`backend.yml`) in k8s folder .
 
 #### **frontend.yml**
 
@@ -352,8 +352,8 @@ The `backend.yml` manifest also contains two resources: a **Deployment** and a *
 Once the cluster is ready and the config is updated, apply the deployment and service configurations with:
 
 ```bash
-kubectl apply -f frontend.yml
-kubectl apply -f backend.yml
+kubectl apply -f k8s/frontend.yml
+kubectl apply -f k8s/backend.yml
 ```
 
 This will create the necessary deployments and services for both your frontend and backend.
