@@ -23,28 +23,23 @@ jobs:
         run: |
           aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-      - name: Set image tag
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        run: echo "IMAGE_TAG=${IMAGE_TAG}"
-
       - name: Build and Tag Docker Image for Frontend
         run: |
-          docker build -t qr-code-frontend:$IMAGE_TAG ./frontend
-          docker tag qr-code-frontend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:$IMAGE_TAG
+          docker build -t insta-frontend ./frontend
+          docker tag insta-frontend:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:latest
 
       - name: Build and Tag Docker Image for Backend
         run: |
-          docker build -t qr-code-backend:$IMAGE_TAG ./backend
-          docker tag qr-code-backend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:$IMAGE_TAG
+          docker build -t insta-backend ./backend
+          docker tag insta-backend:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:latest
 
       - name: Push Frontend Image to ECR
         run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:latest
 
       - name: Push Backend Image to ECR
         run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:latest
 
       - name: Set up kubeconfig
         run: |
@@ -54,8 +49,8 @@ jobs:
 
       - name: Deploy Frontend to EKS
         run: |
-          kubectl set image deployment/frontend-deployment frontend-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:$IMAGE_TAG --record
+          kubectl set image deployment/frontend-deployment frontend-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-frontend:latest --record
 
       - name: Deploy Backend to EKS
         run: |
-          kubectl set image deployment/backend-deployment backend-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:$IMAGE_TAG --record
+          kubectl set image deployment/backend-deployment backend-container=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/insta-backend:latest --record
