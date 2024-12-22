@@ -17,8 +17,8 @@ export default function Scan() {
     }
     setErrorMessage('');
     const response = await fetch(
-      'http://localhost:8000/generate-qr/',
-      // /api/proxy',
+      // 'http://localhost:8000/generate-qr/',
+      '/api/proxy',
       {
         method: 'POST',
         headers: {
